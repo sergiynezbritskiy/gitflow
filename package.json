@@ -1,0 +1,13 @@
+{
+  "name": "gitflow-hooks",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bash git hooks that enforce branch naming, commit message, and committer email conventions for a Jira-based gitflow.",
+  "scripts": {
+    "postinstall": "bash bin/install.sh",
+    "test": "bats tests/ -r"
+  },
+  "devDependencies": {
+    "bats": "^1.13.0"
+  }
+}

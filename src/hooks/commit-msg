@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# src/hooks/commit-msg
+#
+# Validates that the commit subject matches "<branch> Capitalized sentence."
+# Merge commits (git merge's auto-generated message) are skipped entirely.
+#
+# Note: commit-msg only ever receives $1 (the message file path) - the
+# "source" argument (e.g. "merge") belongs to prepare-commit-msg, not this
+# hook - so merges are detected via MERGE_HEAD instead.
+set -euo pipefail
+
+msg_file="$1"
+
+_hook_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_lib_dir="${_hook_dir}/../lib"
+
+# shellcheck source=src/lib/config.sh
+source "${_lib_dir}/config.sh"
+# shellcheck source=src/lib/git-utils.sh
+source "${_lib_dir}/git-utils.sh"
+# shellcheck source=src/lib/validate-branch-name.sh
+source "${_lib_dir}/validate-branch-name.sh"
+# shellcheck source=src/lib/validate-commit-message.sh
+source "${_lib_dir}/validate-commit-message.sh"
+
+if gitflow_is_merge_in_progress; then
+  exit 0
+fi
+
+if ! gitflow_load_config; then
+  exit 1
+fi
+
+branch=$(gitflow_current_branch) || {
+  echo "[gitflow] Could not determine current branch." >&2
+  exit 1
+}
+
+subject=""
+while IFS= read -r line || [[ -n "$line" ]]; do
+  [[ "$line" == \#* ]] && continue
+  if [[ -z "$subject" && -n "$line" ]]; then
+    subject="$line"
+    break
+  fi
+done < "$msg_file"
+
+if ! gitflow_validate_commit_message "$subject" "$branch" "${GITFLOW_JIRA_KEYS:-}" "${GITFLOW_BRANCH_EXCEPTIONS:-}"; then
+  exit 1
+fi
+
+exit 0

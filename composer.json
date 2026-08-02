@@ -1,0 +1,10 @@
+{
+    "name": "sergiynezbritskiy/gitflow",
+    "description": "Bash git hooks that enforce branch naming, commit message, and committer email conventions for a Jira-based gitflow.",
+    "type": "library",
+    "license": "MIT",
+    "scripts": {
+        "post-install-cmd": "bash bin/install.sh",
+        "post-update-cmd": "bash bin/install.sh"
+    }
+}

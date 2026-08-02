@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# src/hooks/pre-commit
+#
+# Validates the current branch name and the committer's email against the
+# gitflow config (.env.gitflow at the repo root).
+set -euo pipefail
+
+_hook_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_lib_dir="${_hook_dir}/../lib"
+
+# shellcheck source=src/lib/config.sh
+source "${_lib_dir}/config.sh"
+# shellcheck source=src/lib/git-utils.sh
+source "${_lib_dir}/git-utils.sh"
+# shellcheck source=src/lib/validate-branch-name.sh
+source "${_lib_dir}/validate-branch-name.sh"
+# shellcheck source=src/lib/validate-user-email.sh
+source "${_lib_dir}/validate-user-email.sh"
+
+if ! gitflow_load_config; then
+  exit 1
+fi
+
+branch=$(gitflow_current_branch) || {
+  echo "[gitflow] Could not determine current branch." >&2
+  exit 1
+}
+
+if ! gitflow_validate_branch_name "$branch" "${GITFLOW_JIRA_KEYS:-}" "${GITFLOW_BRANCH_EXCEPTIONS:-}"; then
+  exit 1
+fi
+
+email=$(gitflow_current_author_email) || email=""
+if ! gitflow_validate_user_email "$email" "${GITFLOW_USER_EMAIL_DOMAINS:-}"; then
+  exit 1
+fi
+
+exit 0
