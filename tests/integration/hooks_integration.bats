@@ -157,3 +157,63 @@ EOF
   run git -C "$TEST_REPO" merge --no-ff --no-edit ABC-123
   [ "$status" -eq 0 ]
 }
+
+# --- GITFLOW_JIRA_KEY modes ---
+
+@test "NONE: accepts a plain message on any branch, without GITFLOW_JIRA_KEYS" {
+  cat > "$TEST_REPO/.env.gitflow" <<'EOF'
+GITFLOW_JIRA_KEY=NONE
+GITFLOW_USER_EMAIL_DOMAINS=example.com
+EOF
+  git -C "$TEST_REPO" checkout -qb feature/login
+  echo "content" > "$TEST_REPO/file.txt"
+  git -C "$TEST_REPO" add file.txt
+  run git -C "$TEST_REPO" commit -m "Add sample file."
+  [ "$status" -eq 0 ]
+}
+
+@test "NONE: rejects a message with a ticket prefix" {
+  echo "GITFLOW_JIRA_KEY=NONE" >> "$TEST_REPO/.env.gitflow"
+  git -C "$TEST_REPO" checkout -qb feature/login
+  echo "content" > "$TEST_REPO/file.txt"
+  git -C "$TEST_REPO" add file.txt
+  run git -C "$TEST_REPO" commit -m "ABC-123: Add sample file."
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"must not start with a ticket key"* ]]
+}
+
+@test "OPTIONAL: accepts both message forms on a non-jira branch" {
+  echo "GITFLOW_JIRA_KEY=OPTIONAL" >> "$TEST_REPO/.env.gitflow"
+  git -C "$TEST_REPO" checkout -qb feature/login
+  echo "a" > "$TEST_REPO/a.txt"
+  git -C "$TEST_REPO" add a.txt
+  run git -C "$TEST_REPO" commit -m "Add a."
+  [ "$status" -eq 0 ]
+
+  echo "b" > "$TEST_REPO/b.txt"
+  git -C "$TEST_REPO" add b.txt
+  run git -C "$TEST_REPO" commit -m "ABC-123: Add b."
+  [ "$status" -eq 0 ]
+}
+
+@test "OPTIONAL: a jira branch still requires its ticket key in the message" {
+  echo "GITFLOW_JIRA_KEY=OPTIONAL" >> "$TEST_REPO/.env.gitflow"
+  git -C "$TEST_REPO" checkout -qb ABC-123
+  echo "content" > "$TEST_REPO/file.txt"
+  git -C "$TEST_REPO" add file.txt
+  run git -C "$TEST_REPO" commit -m "Add sample file."
+  [ "$status" -ne 0 ]
+
+  run git -C "$TEST_REPO" commit -m "ABC-123: Add sample file."
+  [ "$status" -eq 0 ]
+}
+
+@test "rejects commits when GITFLOW_JIRA_KEY has an invalid value" {
+  echo "GITFLOW_JIRA_KEY=SOMETIMES" >> "$TEST_REPO/.env.gitflow"
+  git -C "$TEST_REPO" checkout -qb ABC-123
+  echo "content" > "$TEST_REPO/file.txt"
+  git -C "$TEST_REPO" add file.txt
+  run git -C "$TEST_REPO" commit -m "ABC-123: Add sample file."
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"Invalid GITFLOW_JIRA_KEY"* ]]
+}

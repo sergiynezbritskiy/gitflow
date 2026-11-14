@@ -95,3 +95,28 @@ setup() {
   run gitflow_validate_branch_name "merge/ABC123/staging" "ABC,TTD" ""
   [ "$status" -eq 1 ]
 }
+
+@test "REQUIRED mode passed explicitly still rejects a non-jira branch" {
+  run gitflow_validate_branch_name "feature/foo" "ABC,TTD" "" "REQUIRED"
+  [ "$status" -eq 1 ]
+}
+
+@test "NONE mode accepts any branch name" {
+  run gitflow_validate_branch_name "feature/foo" "ABC,TTD" "" "NONE"
+  [ "$status" -eq 0 ]
+}
+
+@test "NONE mode does not need GITFLOW_JIRA_KEYS" {
+  run gitflow_validate_branch_name "feature/foo" "" "" "NONE"
+  [ "$status" -eq 0 ]
+}
+
+@test "OPTIONAL mode accepts a non-jira branch name" {
+  run gitflow_validate_branch_name "feature/foo" "ABC,TTD" "" "OPTIONAL"
+  [ "$status" -eq 0 ]
+}
+
+@test "OPTIONAL mode accepts a jira branch name" {
+  run gitflow_validate_branch_name "ABC-123" "ABC,TTD" "" "OPTIONAL"
+  [ "$status" -eq 0 ]
+}

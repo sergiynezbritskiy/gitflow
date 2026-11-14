@@ -44,11 +44,17 @@ gitflow_branch_is_merge_branch() {
   [[ "$branch" =~ ^merge/(${keys_pattern})-[0-9]+/.+$ ]]
 }
 
-# gitflow_validate_branch_name <branch> <jira_keys_csv> <exceptions_csv>
+# gitflow_validate_branch_name <branch> <jira_keys_csv> <exceptions_csv> [mode]
 # Branch must be exactly KEY-<number> for one of the configured Jira keys,
 # or merge/KEY-<number>/<anything>, unless it matches the exceptions list.
+# mode is the resolved GITFLOW_JIRA_KEY (default REQUIRED); under NONE and
+# OPTIONAL branch names are not checked at all.
 gitflow_validate_branch_name() {
-  local branch="$1" jira_keys_csv="$2" exceptions_csv="$3"
+  local branch="$1" jira_keys_csv="$2" exceptions_csv="$3" mode="${4:-REQUIRED}"
+
+  if [[ "$mode" != "REQUIRED" ]]; then
+    return 0
+  fi
 
   if gitflow_branch_is_exception "$branch" "$exceptions_csv"; then
     return 0

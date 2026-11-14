@@ -8,7 +8,7 @@ setup() {
 
 teardown() {
   rm -rf "$TEST_TMPDIR"
-  unset GITFLOW_JIRA_KEYS GITFLOW_USER_EMAIL_DOMAINS GITFLOW_BRANCH_EXCEPTIONS
+  unset GITFLOW_JIRA_KEYS GITFLOW_JIRA_KEY GITFLOW_USER_EMAIL_DOMAINS GITFLOW_BRANCH_EXCEPTIONS
 }
 
 @test "loads a well-formed .env.gitflow successfully" {
@@ -89,4 +89,41 @@ EOF
   run gitflow_env_file_path
   [ "$status" -eq 0 ]
   [[ "$output" == */.env.gitflow ]]
+}
+
+@test "exports GITFLOW_JIRA_KEY without confusing it with GITFLOW_JIRA_KEYS" {
+  cat > "$TEST_TMPDIR/.env.gitflow" <<'EOF'
+GITFLOW_JIRA_KEYS=ABC,TTD
+GITFLOW_JIRA_KEY=OPTIONAL
+EOF
+  gitflow_load_config "$TEST_TMPDIR/.env.gitflow"
+  [ "$GITFLOW_JIRA_KEYS" = "ABC,TTD" ]
+  [ "$GITFLOW_JIRA_KEY" = "OPTIONAL" ]
+}
+
+@test "jira key mode defaults to REQUIRED when unset" {
+  run gitflow_resolve_jira_key_mode ""
+  [ "$status" -eq 0 ]
+  [ "$output" = "REQUIRED" ]
+}
+
+@test "jira key mode accepts NONE, REQUIRED and OPTIONAL" {
+  local mode
+  for mode in NONE REQUIRED OPTIONAL; do
+    run gitflow_resolve_jira_key_mode "$mode"
+    [ "$status" -eq 0 ]
+    [ "$output" = "$mode" ]
+  done
+}
+
+@test "jira key mode is case-insensitive and ignores surrounding spaces" {
+  run gitflow_resolve_jira_key_mode " optional "
+  [ "$status" -eq 0 ]
+  [ "$output" = "OPTIONAL" ]
+}
+
+@test "jira key mode rejects an unknown value with a clear error" {
+  run gitflow_resolve_jira_key_mode "SOMETIMES"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"Invalid GITFLOW_JIRA_KEY 'SOMETIMES'"* ]]
 }

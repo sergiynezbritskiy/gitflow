@@ -15,6 +15,7 @@ GITFLOW_ENV_SAMPLE_FILENAME=".env.gitflow.sample"
 
 GITFLOW_KNOWN_VARS=(
   GITFLOW_JIRA_KEYS
+  GITFLOW_JIRA_KEY
   GITFLOW_USER_EMAIL_DOMAINS
   GITFLOW_BRANCH_EXCEPTIONS
 )
@@ -81,4 +82,27 @@ gitflow_load_config() {
   done < "$env_file"
 
   return 0
+}
+
+# gitflow_resolve_jira_key_mode <raw_value>
+# Normalizes GITFLOW_JIRA_KEY to NONE, REQUIRED or OPTIONAL and prints it.
+# An unset/empty value means REQUIRED; the value is case-insensitive. Any
+# other value is an error, so a typo cannot silently relax the rules.
+gitflow_resolve_jira_key_mode() {
+  local raw mode
+  raw=$(_gitflow_trim "${1:-}")
+  mode=$(printf '%s' "$raw" | tr '[:lower:]' '[:upper:]')
+
+  case "$mode" in
+    "")
+      printf '%s' "REQUIRED"
+      ;;
+    NONE | REQUIRED | OPTIONAL)
+      printf '%s' "$mode"
+      ;;
+    *)
+      echo "[gitflow] Invalid GITFLOW_JIRA_KEY '${raw}' in ${GITFLOW_ENV_FILENAME}. Allowed: NONE, REQUIRED, OPTIONAL." >&2
+      return 1
+      ;;
+  esac
 }

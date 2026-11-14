@@ -2,7 +2,8 @@
 # src/hooks/pre-commit
 #
 # Validates the current branch name and the committer's email against the
-# gitflow config (.env.gitflow at the repo root).
+# gitflow config (.env.gitflow at the repo root). The branch name is only
+# checked when GITFLOW_JIRA_KEY is REQUIRED (the default).
 set -euo pipefail
 
 _hook_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -26,7 +27,9 @@ branch=$(gitflow_current_branch) || {
   exit 1
 }
 
-if ! gitflow_validate_branch_name "$branch" "${GITFLOW_JIRA_KEYS:-}" "${GITFLOW_BRANCH_EXCEPTIONS:-}"; then
+jira_key_mode=$(gitflow_resolve_jira_key_mode "${GITFLOW_JIRA_KEY:-}") || exit 1
+
+if ! gitflow_validate_branch_name "$branch" "${GITFLOW_JIRA_KEYS:-}" "${GITFLOW_BRANCH_EXCEPTIONS:-}" "$jira_key_mode"; then
   exit 1
 fi
 

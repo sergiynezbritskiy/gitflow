@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # src/hooks/commit-msg
 #
-# Validates that the commit subject matches "<branch> Capitalized sentence."
+# Validates the commit subject according to GITFLOW_JIRA_KEY:
+#   REQUIRED (default)  "<branch>: Capitalized sentence."
+#   NONE                "Capitalized sentence."
+#   OPTIONAL            either form, but the ticket prefix is mandatory when
+#                       the branch itself is a ticket key.
 # Merge commits (git merge's auto-generated message) are skipped entirely.
 #
 # Note: commit-msg only ever receives $1 (the message file path) - the
@@ -45,7 +49,9 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   fi
 done < "$msg_file"
 
-if ! gitflow_validate_commit_message "$subject" "$branch" "${GITFLOW_JIRA_KEYS:-}" "${GITFLOW_BRANCH_EXCEPTIONS:-}"; then
+jira_key_mode=$(gitflow_resolve_jira_key_mode "${GITFLOW_JIRA_KEY:-}") || exit 1
+
+if ! gitflow_validate_commit_message "$subject" "$branch" "${GITFLOW_JIRA_KEYS:-}" "${GITFLOW_BRANCH_EXCEPTIONS:-}" "$jira_key_mode"; then
   exit 1
 fi
 

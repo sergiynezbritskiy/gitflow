@@ -1,6 +1,6 @@
 # gitflow
 
-Bash git hooks that enforce a Jira-based gitflow convention: branch names must match a configured Jira key (`ABC-123`), commit messages must be `ABC-123: Capitalized sentence.`, and commit authors must use an approved email domain.
+Bash git hooks that enforce a Jira-based gitflow convention: branch names must match a configured Jira key (`ABC-123`), commit messages must be `ABC-123: Capitalized sentence.`, and commit authors must use an approved email domain. The Jira key can be made optional or switched off with [`GITFLOW_JIRA_KEY`](#jira-key-mode).
 
 ## Installation
 
@@ -50,6 +50,7 @@ To remove: `bash bin/uninstall.sh` (or `make uninstall`).
 Copy `samples/.env.gitflow.sample` (done automatically by `install.sh`) to `.env.gitflow` at your repo root, fill in the values, and commit it:
 
 ```
+GITFLOW_JIRA_KEY=REQUIRED
 GITFLOW_JIRA_KEYS=ABC,TTD
 GITFLOW_USER_EMAIL_DOMAINS=example.com
 GITFLOW_BRANCH_EXCEPTIONS=master,main,develop,staging,merge/*,tmp_*
@@ -57,9 +58,22 @@ GITFLOW_BRANCH_EXCEPTIONS=master,main,develop,staging,merge/*,tmp_*
 
 | Variable                     | Purpose                                                                                                   |
 |------------------------------|-----------------------------------------------------------------------------------------------------------|
-| `GITFLOW_JIRA_KEYS`          | Comma-separated Jira project keys. Branches must be `KEY-123` for one of these, or `merge/KEY-123/<target>` (e.g. `merge/ABC-123/staging`, `merge/ABC-123/ABC-124`) for a merge-tracking branch. |
+| `GITFLOW_JIRA_KEY`           | `REQUIRED` (default), `OPTIONAL` or `NONE` — whether commit messages carry a Jira ticket prefix. See [Jira key mode](#jira-key-mode). |
+| `GITFLOW_JIRA_KEYS`          | Comma-separated Jira project keys. With `GITFLOW_JIRA_KEY=REQUIRED`, branches must be `KEY-123` for one of these, or `merge/KEY-123/<target>` (e.g. `merge/ABC-123/staging`, `merge/ABC-123/ABC-124`) for a merge-tracking branch. Not used with `NONE`. |
 | `GITFLOW_USER_EMAIL_DOMAINS` | Comma-separated allowed email domains for commit authors.                                                 |
 | `GITFLOW_BRANCH_EXCEPTIONS`  | Comma-separated exact names and/or glob patterns (`*`, `?`) exempt from branch-name/commit-message rules. |
+
+### Jira key mode
+
+`GITFLOW_JIRA_KEY` controls the ticket prefix. It is case-insensitive; leaving it out means `REQUIRED`, and any other value rejects every commit.
+
+| Mode                 | Branch name                                   | Commit message                                                                                              |
+|----------------------|-----------------------------------------------|-------------------------------------------------------------------------------------------------------------|
+| `REQUIRED` (default) | `ABC-123`, `merge/ABC-123/<target>` or an exception | `ABC-123: Some message.`, with the same ticket as the branch.                                         |
+| `OPTIONAL`           | Not checked.                                  | On a branch named `ABC-123`: `ABC-123: Some message.` with that same ticket. On any other branch: `Some message.` or `ABC-123: Some message.` with a configured key. |
+| `NONE`               | Not checked.                                  | `Some message.` — a ticket prefix (`ABC-123: ...`) is rejected.                                             |
+
+In every mode the description must start with a capital letter and end with a period, and branches on the exceptions list and `merge/KEY-123/<target>` branches skip the commit-message check. `OPTIONAL` still needs `GITFLOW_JIRA_KEYS`, to tell which branches and prefixes are tickets; `NONE` does not.
 
 ## Contributing
 
@@ -105,13 +119,13 @@ docker-compose.yml  php/node containers, for machines without Composer or npm
 !.env.gitflow
 ```
 
-`.env.gitflow` is read from the git repo root at commit time — not sourced, only the three `GITFLOW_*` keys are ever parsed, so a malformed or malicious config file can't run arbitrary shell code. Installing over a project that already has an unrelated `.env`/`.env.gitflow` is safe: unknown keys are left untouched. If the `GITFLOW_*` keys aren't present yet, hooks **fail closed** — every commit is rejected with a message pointing at the missing key — rather than silently letting everything through.
+`.env.gitflow` is read from the git repo root at commit time — not sourced, only the known `GITFLOW_*` keys are ever parsed, so a malformed or malicious config file can't run arbitrary shell code. Installing over a project that already has an unrelated `.env`/`.env.gitflow` is safe: unknown keys are left untouched. If the `GITFLOW_*` keys aren't present yet, hooks **fail closed** — every commit is rejected with a message pointing at the missing key — rather than silently letting everything through.
 
 **Why `core.hooksPath` instead of copying into `.git/hooks`.** Hooks stay in sync with the source and work the same whether this repo is used standalone or vendored into another project, since nothing needs re-copying after an update.
 
 **Why Composer and npm behave differently.** Composer does not auto-run a dependency's scripts (a deliberate security restriction), so the composer path above only fires automatically when this repo itself is the Composer root project — vendoring it into another PHP project requires that one line in the consumer's own `composer.json`. npm/yarn/pnpm, by contrast, genuinely run a dependency's `postinstall` automatically, so the npm path needs no extra wiring.
 
-**Merge commits** are always exempt from the commit-message check (detected via `MERGE_HEAD`, not the hook's `$2`, since `commit-msg` — unlike `prepare-commit-msg` — never receives a source argument). Branches on the exceptions list are exempt from both the branch-name and commit-message checks; the email check still always applies.
+**Merge commits** are always exempt from the commit-message check (detected via `MERGE_HEAD`, not the hook's `$2`, since `commit-msg` — unlike `prepare-commit-msg` — never receives a source argument). Branches on the exceptions list are exempt from both the branch-name and commit-message checks, in every `GITFLOW_JIRA_KEY` mode; the email check still always applies.
 
 **`merge/KEY-123/<target>` branches** (e.g. `merge/ABC-123/staging`, `merge/ABC-123/ABC-124`) are accepted as valid branch names in their own right — the `KEY-123` segment must still be a real configured Jira key, unlike the looser `merge/*` glob exception. Commit messages on them are exempt from the `TICKET: Sentence.` format, since there's no single ticket a manual commit on such a branch could unambiguously be prefixed with.
 
